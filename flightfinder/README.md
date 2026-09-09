@@ -36,11 +36,11 @@ termination and final fact checks.
 
 ## Setup
 
-From the repository root:
+From the repository root (the top-level README has the key sign-up steps):
 
     python3 -m venv .venv && source .venv/bin/activate
     pip install -r flightfinder/requirements.txt
-    python -m playwright install chromium     # only needed for live fetching and verify_port_diff.py
+    python -m playwright install chromium     # only needed by examples/verify_port_diff.py
     cp flightfinder/.env.example flightfinder/.env   # then fill in your keys; .env is git-ignored
     cd flightfinder
 
