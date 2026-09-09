@@ -1,0 +1,255 @@
+{
+ "captured": "2026-09-09T03:11:12",
+ "python": "3.11.15",
+ "today": "2026-09-09",
+ "note": "real AutoGen SelectorGroupChat, real selector_func/candidate_func/termination/schema; model replies scripted via ReplayChatCompletionClient",
+ "pairs": [
+  {
+   "id": "A",
+   "title": "Does the model call the date flexible?",
+   "varies": "date_is_flexible, with the same preferred date and the same seven-day window",
+   "teaches": "One bit of model judgement decides how much work the system does - one browser session, or the capped fan-out of three. Nothing else in the input changed.",
+   "sides": [
+    {
+     "label": "date_is_flexible = false",
+     "input": {
+      "date": "2026-11-08",
+      "flexible": false
+     },
+     "result": {
+      "search_dates": [
+       "2026-11-08"
+      ],
+      "searches": 1
+     }
+    },
+    {
+     "label": "date_is_flexible = true",
+     "input": {
+      "date": "2026-11-08",
+      "flexible": true
+     },
+     "result": {
+      "search_dates": [
+       "2026-11-05",
+       "2026-11-08",
+       "2026-11-11"
+      ],
+      "searches": 3
+     }
+    }
+   ]
+  },
+  {
+   "id": "E",
+   "title": "The model says flexible. Is it actionable?",
+   "varies": "the date and its window, with date_is_flexible pinned to true in all three",
+   "teaches": "The model returned flexible = true in all three. plan_search_dates then sampled a valid seven-day window down to three dates, clipped a window that had already passed down to one, and searched malformed output as a single path. The model has an opinion; the code keeps the veto.",
+   "sides": [
+    {
+     "label": "date = 2026-11-08, window 2026-11-05 to 2026-11-11 (seven days, all in the future)",
+     "input": {
+      "date": "2026-11-08",
+      "flexible": true
+     },
+     "result": {
+      "search_dates": [
+       "2026-11-05",
+       "2026-11-08",
+       "2026-11-11"
+      ],
+      "searches": 3
+     }
+    },
+    {
+     "label": "date = 2026-09-09, window 2026-09-07 to 2026-09-09 (two of the three days already gone)",
+     "input": {
+      "date": "2026-09-09",
+      "flexible": true
+     },
+     "result": {
+      "search_dates": [
+       "2026-09-09"
+      ],
+      "searches": 1
+     }
+    },
+    {
+     "label": "date = 'Nov 5' (the parser was supposed to normalise this and did not - the raw string reached the code)",
+     "input": {
+      "date": "Nov 5",
+      "flexible": true
+     },
+     "result": {
+      "search_dates": [
+       "Nov 5"
+      ],
+      "searches": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "B",
+   "title": "Did the user mention a budget?",
+   "varies": "one clause in the user's sentence; the code and the team are identical",
+   "teaches": "The same three agents produce a different shape of run. Nobody wrote an if-statement for this — the dispatcher read the request and skipped a whole review round.",
+   "sides": [
+    {
+     "label": "budget stated ($200)",
+     "result": {
+      "path": [
+       "user",
+       "merge_ranker_agent",
+       "budget_critic_agent",
+       "summarizer_agent"
+      ],
+      "agent_turns": 3,
+      "routing_calls": 1,
+      "model_calls": 4,
+      "stop_reason": "'summarizer_agent' answered",
+      "structured": true,
+      "within_budget": true,
+      "n_options": 1,
+      "tokens": 888
+     }
+    },
+    {
+     "label": "no budget stated",
+     "result": {
+      "path": [
+       "user",
+       "merge_ranker_agent",
+       "summarizer_agent"
+      ],
+      "agent_turns": 2,
+      "routing_calls": 1,
+      "model_calls": 3,
+      "stop_reason": "'summarizer_agent' answered",
+      "structured": true,
+      "within_budget": true,
+      "n_options": 1,
+      "tokens": 646
+     }
+    }
+   ]
+  },
+  {
+   "id": "C",
+   "title": "Can the budget actually be met?",
+   "varies": "the budget number only: $200 against $90",
+   "teaches": "The impossible budget costs five agent turns instead of three and nearly twice the tokens, because it buys one rerank before MAX_CRITIC_RETRIES cuts the loop off. It still returns the cheapest fare it found, with within_budget = false attached — an honest answer rather than an empty one, and rather than a loop.",
+   "sides": [
+    {
+     "label": "budget $200 (reachable)",
+     "result": {
+      "path": [
+       "user",
+       "merge_ranker_agent",
+       "budget_critic_agent",
+       "summarizer_agent"
+      ],
+      "agent_turns": 3,
+      "routing_calls": 1,
+      "model_calls": 4,
+      "stop_reason": "'summarizer_agent' answered",
+      "structured": true,
+      "within_budget": true,
+      "n_options": 1,
+      "tokens": 888
+     }
+    },
+    {
+     "label": "budget $90 (impossible)",
+     "result": {
+      "path": [
+       "user",
+       "merge_ranker_agent",
+       "budget_critic_agent",
+       "merge_ranker_agent",
+       "budget_critic_agent",
+       "summarizer_agent"
+      ],
+      "agent_turns": 5,
+      "routing_calls": 2,
+      "model_calls": 7,
+      "stop_reason": "'summarizer_agent' answered",
+      "structured": true,
+      "within_budget": false,
+      "n_options": 1,
+      "tokens": 1673
+     }
+    }
+   ]
+  },
+  {
+   "id": "D",
+   "title": "What if the page came back empty?",
+   "varies": "whether the search returned flight rows",
+   "teaches": "Read the two paths: they are identical, and so is the number of routing calls. Nothing about the orchestration changed. What changed is the content — NO_DATA is not RETRY, so the critic does not ask for a rerank that cannot help, and the report carries zero options rather than a plausible invented flight.",
+   "sides": [
+    {
+     "label": "the fetch returned rows",
+     "result": {
+      "path": [
+       "user",
+       "merge_ranker_agent",
+       "budget_critic_agent",
+       "summarizer_agent"
+      ],
+      "agent_turns": 3,
+      "routing_calls": 1,
+      "model_calls": 4,
+      "stop_reason": "'summarizer_agent' answered",
+      "structured": true,
+      "within_budget": true,
+      "n_options": 1,
+      "tokens": 888
+     }
+    },
+    {
+     "label": "the fetch returned nothing",
+     "result": {
+      "path": [
+       "user",
+       "merge_ranker_agent",
+       "budget_critic_agent",
+       "summarizer_agent"
+      ],
+      "agent_turns": 3,
+      "routing_calls": 1,
+      "model_calls": 4,
+      "stop_reason": "'summarizer_agent' answered",
+      "structured": true,
+      "within_budget": false,
+      "n_options": 0,
+      "tokens": 910
+     }
+    }
+   ]
+  },
+  {
+   "id": "F",
+   "title": "How often is the model asked who speaks next?",
+   "varies": "nothing — this reads the run in pair B/C/D and counts",
+   "teaches": "Three agents spoke, and the model was asked to choose the speaker 1 time, not 3. selector_func answered every other transition from the transcript alone. Those routing calls produce no message, so the only way to see them is to count.",
+   "sides": [
+    {
+     "label": "one full run with selector_func in place",
+     "result": {
+      "agent_turns": 3,
+      "decided_by_rule": 2,
+      "decided_by_model": 1,
+      "model_calls_total": 4
+     }
+    }
+   ]
+  }
+ ],
+ "versions": {
+  "autogen-agentchat": "0.7.5",
+  "autogen-core": "0.7.5",
+  "autogen-ext": "0.7.5",
+  "pydantic": "2.13.3"
+ }
+}

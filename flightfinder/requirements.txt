@@ -1,0 +1,8 @@
+autogen-agentchat>=0.7,<0.8
+autogen-core>=0.7,<0.8
+autogen-ext[openai]>=0.7,<0.8
+pydantic>=2.7
+python-dotenv>=1.0
+html2text>=2024.2.26
+playwright>=1.44
+browserbase>=1.0
