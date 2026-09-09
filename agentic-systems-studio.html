@@ -908,24 +908,6 @@ function wAutonomy(host, done){
 
 <script>
 /* --- 05 structured output: prose vs contract --- */
-const REPLIES = [
-  { k:"tidy", nm:"The reply you designed for",
-    text:"Cheapest option: Alaska Airlines, $179, nonstop.",
-    regex:{ ok:true, out:'airline="Alaska Airlines", price=179.0' },
-    schema:{ ok:true, out:'FlightOption(airline="Alaska Airlines", price_usd=179.0, stops="nonstop")' } },
-  { k:"polite", nm:"Same content, friendlier",
-    text:"Sure! I found a great deal — Alaska Airlines has a nonstop for just $179.",
-    regex:{ ok:false, out:'no match for /^Cheapest option: (.+), \\$(\\d+)/' },
-    schema:{ ok:true, out:'FlightOption(airline="Alaska Airlines", price_usd=179.0, stops="nonstop")' } },
-  { k:"currency", nm:"A comma in the number",
-    text:"Cheapest option: Emirates, $1,179, nonstop.",
-    regex:{ ok:false, out:'price parsed as 1.0 — silently wrong, no error raised' },
-    schema:{ ok:true, out:'FlightOption(airline="Emirates", price_usd=1179.0, stops="nonstop")' } },
-  { k:"hedge", nm:"Nothing was found",
-    text:"I could not retrieve live prices for that date, so I cannot recommend an option.",
-    regex:{ ok:false, out:'no match — caller receives None and has no idea why' },
-    schema:{ ok:true, out:'FlightSearchReport(options=[], within_budget=false, notes="fetch failed")' } },
-];
 
 /* --- 06 guards: watch a loop run away, then fence it --- */
 </script>
@@ -952,53 +934,6 @@ const REPLIES = [
 
 <script>
 /* --- 13 failure clinic --- */
-const CASES = [
-  { nm:"Case 1 · the polite loop",
-    trace:[["merge","ranker","Here are 5 options, ranked."],["critic","critic","Looks good — maybe the ranker should double-check the times."],
-           ["merge","ranker","Re-checked. Here are 5 options, ranked."],["critic","critic","Thanks — perhaps one more pass on the times?"],
-           ["merge","ranker","Re-checked. Here are 5 options, ranked."],["bad","system","MaxMessageTermination(12) fired. No final answer."]],
-    q:"What is the root cause?",
-    opts:["The critic's prompt is too vague — it never has to commit to a verdict the router can act on",
-          "The model is too weak for this task",
-          "The message cap is set too low",
-          "The ranker is producing bad rankings"],
-    a:0,
-    why:"Nothing in the critic's output is machine-readable, so routing falls back to “whoever the model feels like”, and two agreeable agents will hand work back and forth indefinitely. The fix is a <b>verdict protocol</b>: the critic must open with APPROVED / RETRY / NO_DATA, and code routes on that word. Raising the message cap only makes the same failure more expensive." },
-  { nm:"Case 2 · the confident invention",
-    trace:[["tool","fetch","[error] TimeoutError: page did not render"],["merge","extractor","No flight data was returned for this date."],
-           ["critic","critic","RETRY — none of these meet the $200 budget, relax to $250."],["merge","extractor","Delta $228, United $241, Alaska $249"],
-           ["summ","writer","Three options found, all within the relaxed budget."]],
-    q:"Where did the system go wrong?",
-    opts:["The fetch should have retried",
-          "The critic treated “no data” as “bad results”, which told the ranker to try harder — and trying harder with no data means inventing it",
-          "The budget was too low",
-          "The writer should have validated the prices"],
-    a:1,
-    why:"“Nothing was found” and “what was found is unsatisfactory” need <b>different signals</b>, because they need opposite responses. Collapsing them into one RETRY path is what turns an honest empty result into a fabricated one. This is why the FlightFinder critic has a separate NO_DATA verdict that can never trigger a rerank." },
-  { nm:"Case 3 · the poisoned handoff",
-    trace:[["model","researcher","THOUGHT: the pricing page says $19 — but it is dated 2023, ignore it."],
-           ["model","researcher","THOUGHT: the changelog says $29, current. Using $29."],
-           ["summ","researcher","FINAL: price is $29/mo."],
-           ["bad","writer","Draft: “…now available at just $19 per month.”"]],
-    q:"Why did the writer use the wrong number?",
-    opts:["The researcher's final answer was wrong",
-          "The writer inherited the full transcript, including the discarded $19, and had no way to know which number was rejected",
-          "The writer's prompt was too short",
-          "The model hallucinated the price"],
-    a:1,
-    why:"Passing the whole transcript feels safe — “nothing is lost” — but everything the first agent <i>considered and rejected</i> is still sitting there as plausible text. Reasoning is not marked as invalid; it is just earlier. Hand over a typed payload or a summary, or explicitly mark what was rejected." },
-  { nm:"Case 4 · the invisible cost",
-    trace:[["merge","agent A","(re-reads 14k-token transcript) contributes 2 lines"],["merge","agent B","(re-reads 15k-token transcript) contributes 1 line"],
-           ["merge","agent C","(re-reads 16k-token transcript) “I agree with the above.”"],["merge","agent D","(re-reads 17k-token transcript) “Nothing to add.”"],
-           ["bad","billing","round 3 of 4 · 268k tokens consumed"]],
-    q:"What is the structural problem?",
-    opts:["The agents are too verbose",
-          "A shared-transcript round robin makes every agent pay to re-read everything, every round — even agents with nothing to say",
-          "The context window is too small",
-          "The transcript should be compressed"],
-    a:1,
-    why:"Cost here is <b>agents × rounds × transcript</b>, and the transcript grows with every turn, so the bill grows quadratically while the useful output stays flat. Either give agents their own contexts and pass typed results, or use a dispatcher so that only agents with something to contribute are asked to speak." },
-];
 
 /* --- 14 cost and latency model --- */
 
@@ -1336,7 +1271,7 @@ const PARTS = {
       "Count how many extra model calls a routing policy costs, and say whether they were worth it",
       "Explain why a loop between two agents needs a stopping rule that still produces an answer" ]},
   [P3]: { title:"The case", nodes:"02",
-    tag:"One real application, read in the order it was built — then measured offline, run against real Kayak, tested, and ported into this page.",
+    tag:"One real application, read in the order it was built — then run against real Kayak, tested, and ported into this page.",
     obj:[
       "Name the five decisions, in order, that turn a request into a multi-agent system",
       "Say which two points a model decides, and what code owns after each",
@@ -2665,7 +2600,6 @@ const NODES_P2 = [
 </script>
 
 <script>
-const CMP = {"captured": "2026-09-09", "python": "3.11.15", "today": "2026-09-09", "autogen": "0.7.5", "pydantic": "2.13.3", "cmp": [{"id": "E", "kind": "guard", "t": "The model says the date is flexible. Is that usable?", "varies": "the date and its window. <code>date_is_flexible</code> is true in all three.", "rows": [{"label": "date = 2026-11-08, window 2026-11-05 to 2026-11-11 (seven days, all in the future)", "dates": ["2026-11-05", "2026-11-08", "2026-11-11"], "searches": 3}, {"label": "date = 2026-09-09, window 2026-09-07 to 2026-09-09 (two of the three days already gone)", "dates": ["2026-09-09"], "searches": 1}, {"label": "date = 'Nov 5' (the parser was supposed to normalise this and did not - the raw string reached the code)", "dates": ["Nov 5"], "searches": 1}], "why": "Same judgement from the model, three outcomes decided by code: a seven-day window sampled to three dates, a window mostly behind us clipped to one, and a string that is not a date searched once as it is. <b>The model has an opinion; the code keeps the veto.</b>"}, {"id": "B", "kind": "team", "t": "Did the user mention a budget?", "varies": "one clause in the user's sentence. Same code, same three agents, same team object.", "rows": [{"label": "budget stated ($200)", "path": ["user", "merge_ranker_agent", "budget_critic_agent", "summarizer_agent"], "turns": 3, "routing": 1, "calls": 4, "tokens": 888, "within": true, "opts": 1}, {"label": "no budget stated", "path": ["user", "merge_ranker_agent", "summarizer_agent"], "turns": 2, "routing": 1, "calls": 3, "tokens": 646, "within": true, "opts": 1}], "why": "Nobody wrote an <code>if</code> for this: the dispatcher read the request and dropped the review round — one fewer turn, <b>27% fewer tokens</b>. The team's shape is decided at runtime, by reading."}, {"id": "C", "kind": "team", "t": "Can the stated budget actually be met?", "varies": "the budget number only — $200 against $90.", "rows": [{"label": "budget $200 (reachable)", "path": ["user", "merge_ranker_agent", "budget_critic_agent", "summarizer_agent"], "turns": 3, "routing": 1, "calls": 4, "tokens": 888, "within": true, "opts": 1}, {"label": "budget $90 (impossible)", "path": ["user", "merge_ranker_agent", "budget_critic_agent", "merge_ranker_agent", "budget_critic_agent", "summarizer_agent"], "turns": 5, "routing": 2, "calls": 7, "tokens": 1673, "within": false, "opts": 1}], "why": "The impossible budget buys exactly one rerank before <code>MAX_CRITIC_RETRIES</code> cuts it off: five turns instead of three, <b>nearly twice the tokens</b>. The report still carries the cheapest fare, with <code>within_budget = false</code> — an honest answer, not a loop."}, {"id": "D", "kind": "team", "t": "What if the page came back with no flights?", "varies": "whether the search returned any rows.", "rows": [{"label": "the fetch returned rows", "path": ["user", "merge_ranker_agent", "budget_critic_agent", "summarizer_agent"], "turns": 3, "routing": 1, "calls": 4, "tokens": 888, "within": true, "opts": 1}, {"label": "the fetch returned nothing", "path": ["user", "merge_ranker_agent", "budget_critic_agent", "summarizer_agent"], "turns": 3, "routing": 1, "calls": 4, "tokens": 910, "within": false, "opts": 0}], "why": "<b>The two paths are identical</b>, and so is the routing; only the content changed. <code>NO_DATA</code> is not <code>RETRY</code>, so nothing is reranked and the report carries <b>zero options</b> rather than an invented flight."}]};
 
 (function(){
   if (document.getElementById("cmpCSS")) return;
@@ -2697,85 +2631,11 @@ const CMP = {"captured": "2026-09-09", "python": "3.11.15", "today": "2026-09-09
   document.head.appendChild(s);
 })();
 
-function wCompare(host, done){
-  const D = CMP;
-  let open = 0;
-
-  function guardTab(c){
-    return '<table class="cm-tab"><tr><th>what the parser returned</th>' +
-      '<th style="text-align:right">dates the code decided to search</th><th style="text-align:right">browser sessions</th></tr>' +
-      c.rows.map(function(r){
-        const full = r.searches === 3;
-        return '<tr><td class="k">' + esc(r.label) + '</td>' +
-          '<td class="n">' + r.dates.join('<br>') + '</td>' +
-          '<td class="n">' + (full ? r.searches : '<span class="cm-hi">' + r.searches + '</span>') + '</td></tr>';
-      }).join("") + '</table>';
-  }
-
-  function teamTab(c){
-    const a = c.rows[0], b = c.rows[1];
-    const row = function(label, ka, kb, fmt){
-      const va = fmt ? fmt(a[ka]) : a[ka], vb = fmt ? fmt(b[ka]) : b[ka];
-      const diff = String(va) !== String(vb);
-      const wrap = function(v){ return diff ? '<span class="cm-hi">' + v + '</span>'
-                                            : '<span class="cm-same">' + v + '</span>'; };
-      return '<tr><td class="k">' + label + '</td><td class="n">' + wrap(va) +
-             '</td><td class="n">' + wrap(vb) + '</td></tr>';
-    };
-    const pathRow = '<tr><td class="k">who spoke, in order</td>' +
-      [a, b].map(function(s){
-        const other = s === a ? b : a;
-        const same = s.path.join(">") === other.path.join(">");
-        return '<td class="p" style="text-align:left">' +
-          (same ? '<span class="cm-same">' : '<span style="color:var(--model)">') +
-          s.path.join(" &rarr;<br>") + '</span></td>';
-      }).join("") + '</tr>';
-    return '<table class="cm-tab"><tr><th></th><th style="text-align:right">' + esc(a.label) +
-      '</th><th style="text-align:right">' + esc(b.label) + '</th></tr>' +
-      row("agent turns", "turns") +
-      row("routing calls (a model chose the speaker)", "routing") +
-      row("model calls, total", "calls") +
-      row("tokens", "tokens", null, function(v){ return v.toLocaleString(); }) +
-      row("within_budget in the report", "within", null, function(v){ return String(v); }) +
-      row("options returned", "opts") +
-      pathRow + '</table>';
-  }
-
-  host.innerHTML = '<div class="stage">' +
-    '<div class="stage-bar"><span class="stage-title">Change one thing, measure what moved</span></div>' +
-    '<div class="stage-body">' +
-      '<div class="cm-prov">captured <b>' + D.captured + '</b> &middot; python <b>' + D.python +
-        '</b> &middot; autogen-agentchat <b>' + D.autogen + '</b> &middot; pydantic <b>' + D.pydantic + '</b><br>' +
-        'AutoGen&rsquo;s own SelectorGroupChat, this project&rsquo;s selector_func, candidate_func, retry cap, ' +
-        'termination and schema validation all executed. Only the model&rsquo;s replies were scripted, so every ' +
-        'number below is the same on any machine.</div>' +
-      '<div id="cmList"></div>' +
-    '</div></div>';
-
-  const list = host.querySelector("#cmList");
-  D.cmp.forEach(function(c, i){
-    const it = el("div", "cm-item");
-    it.innerHTML =
-      '<div class="cm-hd"><span class="cm-id">' + c.id + '</span>' +
-        '<div><div class="cm-t">' + c.t + '</div><div class="cm-v">varies: ' + c.varies + '</div></div></div>' +
-      '<div class="cm-body" style="display:none">' +
-        (c.kind === "guard" ? guardTab(c) : teamTab(c)) +
-        '<div class="cm-why">' + c.why + '</div></div>';
-    const body = it.querySelector(".cm-body");
-    it.querySelector(".cm-hd").onclick = function(){
-      const shut = body.style.display !== "none";
-      list.querySelectorAll(".cm-body").forEach(function(b){ b.style.display = "none"; });
-      if (!shut) { body.style.display = "block"; if (done) done(); }
-    };
-    if (i === 0) body.style.display = "block";
-    list.appendChild(it);
-  });
-}
 </script>
 
 <!-- LIVE-WIDGET-START -->
 <script>
-const LIVE = {"captured": "2026-09-08", "python": "3.14.2", "model": "gpt-4o-mini", "autogen": "0.7.5", "previous": false, "runs": [{"label": "early November, budget $200", "flexible": true, "budget": 200.0, "path": "user -> merge_ranker_agent -> budget_critic_agent -> summarizer_agent", "tokens": {"parse": 840, "search": 9324, "team": 4605, "agents": 14769, "total": 16096, "routing": 1327}, "extracted_prices": [167.0, 167.0, 169.0, 167.0, 169.0, 167.0, 167.0, 169.0, 169.0], "guard": [], "guard_ran": true, "report": {"origin": "SFO", "destination": "JFK", "date": "2026-11-01", "within_budget": true, "n_options": 5, "prices": [167.0, 167.0, 167.0, 167.0, 167.0], "strategies": ["Strategy A: 2026-11-01", "Strategy B: 2026-11-04", "Strategy C: 2026-11-07"], "notes": "Multiple options available under budget; consider alternative departure dates for flexibility."}}, {"label": "fixed date, no budget stated", "flexible": false, "budget": null, "path": "user -> merge_ranker_agent -> summarizer_agent", "tokens": {"parse": 814, "search": 3179, "team": 2067, "agents": 6060, "total": 6859, "routing": 799}, "extracted_prices": [167.0, 169.0, 169.0], "guard": [], "guard_ran": true, "report": {"origin": "SFO", "destination": "JFK", "date": "2026-11-05", "within_budget": true, "n_options": 3, "prices": [167.0, 169.0, 169.0], "strategies": ["A"], "notes": "All options are within budget. The JetBlue flight is the cheapest and offers a good duration."}}, {"label": "fixed date, budget $180", "flexible": false, "budget": 180.0, "path": "user -> merge_ranker_agent -> budget_critic_agent -> summarizer_agent", "tokens": {"parse": 813, "search": 3080, "team": 2820, "agents": 6713, "total": 7461, "routing": 748}, "extracted_prices": [165.0, 165.0, 169.0], "guard": [], "guard_ran": true, "report": {"origin": "SFO", "destination": "JFK", "date": "2026-11-05", "within_budget": true, "n_options": 3, "prices": [165.0, 165.0, 169.0], "strategies": ["Strategy A"], "notes": "All options are nonstop and under budget. The cheapest flight is $165."}}, {"label": "5th or 6th, budget $200", "flexible": true, "budget": 200.0, "path": "user -> merge_ranker_agent -> budget_critic_agent -> summarizer_agent", "tokens": {"parse": 826, "search": 6170, "team": 4070, "agents": 11066, "total": 12184, "routing": 1118}, "extracted_prices": [165.0, 169.0, 169.0, 165.0, 165.0, 169.0], "guard": [], "guard_ran": true, "report": {"origin": "SFO", "destination": "JFK", "date": "2026-11-05", "within_budget": true, "n_options": 5, "prices": [165.0, 165.0, 165.0, 169.0, 169.0], "strategies": ["Strategy A", "Strategy B"], "notes": "You have good nonstop options available from JetBlue, Alaska Airlines, and American Airlines. Consider booking the JetBlue flights for the best price."}}, {"label": "today or tomorrow, flexible", "flexible": true, "budget": null, "path": "user -> merge_ranker_agent -> summarizer_agent", "tokens": {"parse": 829, "search": 6330, "team": 3205, "agents": 10364, "total": 11640, "routing": 1276}, "extracted_prices": [702.0, 677.0, 744.0, 348.0, 357.0, 357.0], "guard": [], "guard_ran": true, "report": {"origin": "SFO", "destination": "JFK", "date": "2026-09-08", "within_budget": true, "n_options": 5, "prices": [348.0, 357.0, 357.0, 702.0, 677.0], "strategies": ["Strategy A: 2026-09-08", "Strategy B: 2026-09-09"], "notes": "The cheapest flight is on 2026-09-09 for $348. Consider booking that date for better pricing."}}], "readings": [{"id": "L1", "t": "One sentence, a seven-day window, three real Kayak pages", "sub": "early November · flexible · budget $200 · 29.4s", "rows": [["what the parser returned", "preferred date 2026-11-01, window 2026-11-01 to 2026-11-07"], ["what the code planned", "3 sessions: 2026-11-01, 2026-11-04, 2026-11-07"], ["what Kayak sent back", "2026-11-01: 14,025 characters, 80 price markers · 2026-11-04: 12,949 characters, 73 price markers · 2026-11-07: 12,956 characters, 67 price markers"], ["who spoke", "user -> merge_ranker_agent -> budget_critic_agent -> summarizer_agent"], ["routing calls, invisible in the transcript", "1,327 tokens of 16,096"], ["report", "5 options, cheapest $167, each carrying its <code>departure_date</code>; the guard had nothing to correct"]], "why": "The model read &ldquo;early November&rdquo; as seven days; code kept three, ran them at once, and every option in the report says which day it belongs to. Stage two alone cost 9,324 tokens — the fan-out is where the money goes, which is why its width is a constant in <code>fanout.py</code> and not a model&rsquo;s choice."}, {"id": "L2", "t": "A window with yesterday in it", "sub": "today or tomorrow · flexible · no budget · 24.8s", "rows": [["what the parser returned", "preferred date 2026-09-08, window 2026-09-07 to 2026-09-09"], ["what the code planned", "2 sessions: 2026-09-08, 2026-09-09 — yesterday clipped"], ["who spoke", "user -> merge_ranker_agent -> summarizer_agent"], ["report", "5 options; the cheapest, $348, is on 2026-09-09 — the neighbouring day, and the report says so: &ldquo;The cheapest flight is on 2026-09-09 for $348. Consider booking that date for better pricing.&rdquo;"]], "why": "The model gave a three-day window that started yesterday; code dropped yesterday before a browser session was spent on it, ran two, and the cheaper fare was tomorrow's. This is the veto from comparison E on a real date and a real page."}]};
+const LIVE = {"captured": "2026-09-08", "python": "3.14.2", "model": "gpt-4o-mini", "autogen": "0.7.5", "previous": false, "runs": [{"label": "early November, budget $200", "flexible": true, "budget": 200.0, "path": "user -> merge_ranker_agent -> budget_critic_agent -> summarizer_agent", "tokens": {"parse": 840, "search": 9324, "team": 4605, "agents": 14769, "total": 16096, "routing": 1327}, "extracted_prices": [167.0, 167.0, 169.0, 167.0, 169.0, 167.0, 167.0, 169.0, 169.0], "guard": [], "guard_ran": true, "report": {"origin": "SFO", "destination": "JFK", "date": "2026-11-01", "within_budget": true, "n_options": 5, "prices": [167.0, 167.0, 167.0, 167.0, 167.0], "strategies": ["Strategy A: 2026-11-01", "Strategy B: 2026-11-04", "Strategy C: 2026-11-07"], "notes": "Multiple options available under budget; consider alternative departure dates for flexibility."}}, {"label": "fixed date, no budget stated", "flexible": false, "budget": null, "path": "user -> merge_ranker_agent -> summarizer_agent", "tokens": {"parse": 814, "search": 3179, "team": 2067, "agents": 6060, "total": 6859, "routing": 799}, "extracted_prices": [167.0, 169.0, 169.0], "guard": [], "guard_ran": true, "report": {"origin": "SFO", "destination": "JFK", "date": "2026-11-05", "within_budget": true, "n_options": 3, "prices": [167.0, 169.0, 169.0], "strategies": ["A"], "notes": "All options are within budget. The JetBlue flight is the cheapest and offers a good duration."}}, {"label": "fixed date, budget $180", "flexible": false, "budget": 180.0, "path": "user -> merge_ranker_agent -> budget_critic_agent -> summarizer_agent", "tokens": {"parse": 813, "search": 3080, "team": 2820, "agents": 6713, "total": 7461, "routing": 748}, "extracted_prices": [165.0, 165.0, 169.0], "guard": [], "guard_ran": true, "report": {"origin": "SFO", "destination": "JFK", "date": "2026-11-05", "within_budget": true, "n_options": 3, "prices": [165.0, 165.0, 169.0], "strategies": ["Strategy A"], "notes": "All options are nonstop and under budget. The cheapest flight is $165."}}, {"label": "5th or 6th, budget $200", "flexible": true, "budget": 200.0, "path": "user -> merge_ranker_agent -> budget_critic_agent -> summarizer_agent", "tokens": {"parse": 826, "search": 6170, "team": 4070, "agents": 11066, "total": 12184, "routing": 1118}, "extracted_prices": [165.0, 169.0, 169.0, 165.0, 165.0, 169.0], "guard": [], "guard_ran": true, "report": {"origin": "SFO", "destination": "JFK", "date": "2026-11-05", "within_budget": true, "n_options": 5, "prices": [165.0, 165.0, 165.0, 169.0, 169.0], "strategies": ["Strategy A", "Strategy B"], "notes": "You have good nonstop options available from JetBlue, Alaska Airlines, and American Airlines. Consider booking the JetBlue flights for the best price."}}, {"label": "today or tomorrow, flexible", "flexible": true, "budget": null, "path": "user -> merge_ranker_agent -> summarizer_agent", "tokens": {"parse": 829, "search": 6330, "team": 3205, "agents": 10364, "total": 11640, "routing": 1276}, "extracted_prices": [702.0, 677.0, 744.0, 348.0, 357.0, 357.0], "guard": [], "guard_ran": true, "report": {"origin": "SFO", "destination": "JFK", "date": "2026-09-08", "within_budget": true, "n_options": 5, "prices": [348.0, 357.0, 357.0, 702.0, 677.0], "strategies": ["Strategy A: 2026-09-08", "Strategy B: 2026-09-09"], "notes": "The cheapest flight is on 2026-09-09 for $348. Consider booking that date for better pricing."}}], "readings": [{"id": "L1", "t": "One sentence, a seven-day window, three real Kayak pages", "sub": "early November · flexible · budget $200 · 29.4s", "rows": [["what the parser returned", "preferred date 2026-11-01, window 2026-11-01 to 2026-11-07"], ["what the code planned", "3 sessions: 2026-11-01, 2026-11-04, 2026-11-07"], ["what Kayak sent back", "2026-11-01: 14,025 characters, 80 price markers · 2026-11-04: 12,949 characters, 73 price markers · 2026-11-07: 12,956 characters, 67 price markers"], ["who spoke", "user -> merge_ranker_agent -> budget_critic_agent -> summarizer_agent"], ["routing calls, invisible in the transcript", "1,327 tokens of 16,096"], ["report", "5 options, cheapest $167, each carrying its <code>departure_date</code>; the guard had nothing to correct"]], "why": "The model read &ldquo;early November&rdquo; as seven days; code kept three, ran them at once, and every option in the report says which day it belongs to. Stage two alone cost 9,324 tokens — the fan-out is where the money goes, which is why its width is a constant in <code>fanout.py</code> and not a model&rsquo;s choice."}, {"id": "L2", "t": "A window with yesterday in it", "sub": "today or tomorrow · flexible · no budget · 24.8s", "rows": [["what the parser returned", "preferred date 2026-09-08, window 2026-09-07 to 2026-09-09"], ["what the code planned", "2 sessions: 2026-09-08, 2026-09-09 — yesterday clipped"], ["who spoke", "user -> merge_ranker_agent -> summarizer_agent"], ["report", "5 options; the cheapest, $348, is on 2026-09-09 — the neighbouring day, and the report says so: &ldquo;The cheapest flight is on 2026-09-09 for $348. Consider booking that date for better pricing.&rdquo;"]], "why": "The model gave a three-day window that started yesterday; code dropped yesterday before a browser session was spent on it, ran two, and the cheaper fare was tomorrow's. Step three&rsquo;s veto — clip the past — on a real date and a real page."}]};
 
 (function(){
   if (document.getElementById("lvCSS")) return;
@@ -2948,12 +2808,12 @@ const NODES_P3 = [
   id:"ff-map", part:P3, num:"02", pipeline:true, stageHi:["req","parse","plan","fetch","ext","rank","crit","summ"], pipeNote:"Amber stages are where a model decides. Stage two is one to three browser sessions, and code picks how many.", title:"FlightFinder Pro", tag:"mixed", tagText:"the case",
   lede:"One English sentence in, a validated report out. A real AutoGen application, built in five decisions — and the model is asked how to proceed at exactly two points.",
   brief:`<p>&ldquo;Find flights from SFO to JFK in early November, within $200&rdquo; goes in. A parser agent, a date plan made by code, one to three concurrent Kayak sessions, an extractor per date, a three-agent team with a dispatcher, an exit guard and a token report later, a <code>FlightSearchReport</code> comes out.</p>
-    <p>Read this page in the order the system was built: the five steps below, then the evidence — four controlled comparisons, five real runs, eight tests — and finally a copy of the program you can run in this page. The code is eight files in the <a href="https://github.com/Ivyltt/agentic-systems-class-01" target="_blank" rel="noopener">repository</a>&rsquo;s <code>flightfinder/</code> folder.</p>`,
+    <p>Read this page in the order the system was built: the five steps below, then the evidence — five real runs against real Kayak, eight tests — and finally a copy of the program you can run in this page. The code is eight files in the <a href="https://github.com/Ivyltt/agentic-systems-class-01" target="_blank" rel="noopener">repository</a>&rsquo;s <code>flightfinder/</code> folder.</p>`,
   key:"Decide what the model may decide, and let plain code own everything else. Here that is two judgements — what dates the wording allows, and whether the ranked list needs a second look — which is why the rest can be capped, tested and priced.",
   figure:figFFArch, figureHint:"the whole application on one screen", figCap:"Amber = a model decides · steel = your code decides. A fixed shape at each end, one dispatcher in the middle, and a fan-out whose width is chosen by code.",
-  widgets:[{fn:wBuild},{fn:wFFMapFolded},{fn:wCompare},{fn:wLive},{fn:wTests},{fn:wCapstoneLive}],
-  mechLabel:"Build, then verify", mechHint:"five steps · four comparisons · five real runs · eight tests · one runnable copy",
-  criteria:["Opened a comparison and a real run","Can explain the token difference between two runs"],
+  widgets:[{fn:wBuild},{fn:wFFMapFolded},{fn:wLive},{fn:wTests},{fn:wCapstoneLive}],
+  mechLabel:"Build, then verify", mechHint:"five steps · five real runs · eight tests · one runnable copy",
+  criteria:["Opened a build step, a real run and a test","Can explain the token difference between two runs"],
   claim:"I can walk through a complete run, name the decision made at each stage, and say which parts of it a model is allowed to decide.",
 },
 ];

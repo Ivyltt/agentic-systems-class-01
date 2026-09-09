@@ -15,3 +15,7 @@ flightfinder/examples/port_reference.json
 # old drafts and the lecturer's own script stay out of the repo
 _to_delete/
 teaching-script.md
+
+# the lecturer's script in any format, and its generator
+teaching-script.html
+build_teaching_script_html.py

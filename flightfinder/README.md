@@ -1,9 +1,9 @@
 # FlightFinder Pro
 
 The application behind page 02 of the course page (`../agentic-systems-studio.html`).
-Everything on that page's case section — the concept table, the four comparisons, the
-real-runs panel and the runnable copy — is produced by, or checked against, the files
-in this folder.
+Everything on that page — the five build steps, the real-runs panel, the tests panel and
+the runnable copy — is excerpted from, produced by, or checked against the files in this
+folder.
 
 One English sentence in, a validated `FlightSearchReport` out. A parser agent, a
 bounded date-range plan, concurrent browser searches against Kayak, an extractor per
@@ -28,7 +28,7 @@ termination and final fact checks.
     .env.example          copy to .env and fill in your own keys (.env is git-ignored)
     examples/
       run_comparisons.py     controlled A/B comparisons — no key, no network
-      comparisons.json       its output; the page's four comparison panels are built from it
+      comparisons.json       its output
       capture_live_runs.py   real runs against real Kayak and a real model
       live_runs.json         their verbatim stdout (keys scrubbed); the page's real-runs panel reads it
       verify_port_python.py  runs the real Python over ~20k inputs -> port_reference.json

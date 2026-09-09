@@ -7,8 +7,7 @@ A one-hour class on multi-agent agentic AI, built around one real application.
 
 The course page's third page reads FlightFinder Pro in the order it was built — five
 decisions, each opening the real lines from `flightfinder/` — then shows the evidence:
-four controlled comparisons, five real runs against Kayak, eight tests, and a copy of the
-program that runs in the page.
+five real runs against Kayak, eight tests, and a copy of the program that runs in the page.
 
 ## How the page and the code correspond
 
@@ -17,7 +16,6 @@ Every number on the case page comes from a file in `flightfinder/`:
 | on the page                        | produced by                                             | data file                          |
 |------------------------------------|---------------------------------------------------------|------------------------------------|
 | the five build steps               | verbatim excerpts of the source files, with line numbers | — |
-| the four comparisons (E, B, C, D)  | `examples/run_comparisons.py` — real AutoGen, scripted model, no key | `examples/comparisons.json` |
 | the real-runs panel                | `examples/capture_live_runs.py` — real Kayak pages, real model | `examples/live_runs.json` (keys scrubbed) |
 | the eight tests                    | verbatim excerpts of `test_offline.py` and `test_integration.py` | — |
 | the runnable copy                  | a JavaScript port of `fanout.py` / `agents_advanced.py` / `main_advanced.py`, diffed against the Python on 20,193 inputs by `examples/verify_port_*.py` | — |
@@ -34,7 +32,7 @@ Nothing here needs an API key except the live search itself. Start with these:
     python3 -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
     pip install -r flightfinder/requirements.txt
     cd flightfinder
-    python3 examples/run_comparisons.py      # the four comparisons on the page, recomputed
+    python3 examples/run_comparisons.py      # controlled A/B runs of the real team, no key
     python3 test_offline.py                  # 72 checks
     python3 test_integration.py              # 35 checks
 
